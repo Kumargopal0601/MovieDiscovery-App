@@ -8,6 +8,7 @@ function App() {
   // State to manage the current page being displayed
   // 'home', 'detail', 'favorites'
   const [currentPage, setCurrentPage] = useState('home');
+  const [isLoading, setIsLoading] = useState(true);
   // State to store the ID of the movie currently being viewed in detail
   const [selectedMovieId, setSelectedMovieId] = useState(null);
   // State to store the list of favorite movies.
@@ -30,6 +31,14 @@ function App() {
       console.error("Failed to save favorites to localStorage:", error);
     }
   }, [favorites]); // Dependency array: runs when 'favorites' state changes
+
+  // Simulate initial loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Function to navigate to the MovieDetail page
   const handleSelectMovie = (id) => {
@@ -64,12 +73,41 @@ function App() {
     });
   };
 
+  // Loading screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner mx-auto mb-8"></div>
+          <h1 className="text-4xl font-bold gradient-text animate-pulse mb-4">MovieDiscovery</h1>
+          <p className="text-gray-300 animate-fade-in">Loading your cinematic experience...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
+    <div className="min-h-screen text-gray-100 flex flex-col relative overflow-hidden">
+      {/* Animated background particles */}
+      <div className="particles">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="particle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 6}s`,
+              animationDuration: `${6 + Math.random() * 4}s`
+            }}
+          />
+        ))}
+      </div>
+
       {/* Navigation Bar */}
-      <header className="bg-gray-800 shadow-lg py-4 px-4 md:px-8 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-10">
+      <header className="glass-dark shadow-2xl py-6 px-4 md:px-8 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-50 animate-slide-in-up border-b border-white/10">
         <h1
-          className="text-3xl font-bold text-blue-400 mb-4 sm:mb-0 cursor-pointer hover:text-blue-300 transition-colors duration-200"
+          className="text-4xl font-bold gradient-text mb-4 sm:mb-0 cursor-pointer hover:scale-110 transition-all duration-300 animate-float"
           onClick={handleBackToHome} // Click title to go home
         >
           MovieDiscovery
@@ -79,10 +117,11 @@ function App() {
             <li>
               <button
                 onClick={handleBackToHome}
-                className={`
-                  px-4 py-2 rounded-lg font-medium transition-colors duration-200
-                  ${currentPage === 'home' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                `}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  currentPage === 'home' 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg animate-pulse-glow' 
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white glass'
+                }`}
               >
                 Home
               </button>
@@ -90,20 +129,23 @@ function App() {
             <li>
               <button
                 onClick={handleGoToFavorites}
-                className={`
-                  px-4 py-2 rounded-lg font-medium transition-colors duration-200
-                  ${currentPage === 'favorites' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                `}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 relative ${
+                  currentPage === 'favorites' 
+                    ? 'bg-gradient-to-r from-pink-600 to-red-600 text-white shadow-lg animate-pulse-glow' 
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white glass'
+                }`}
               >
                 Favorites ({favorites.length})
-              </button>
+                <span className="ml-2 bg-white/20 px-2 py-1 rounded-full text-xs animate-bounce">
+                  {favorites.length}
+                </span>
             </li>
           </ul>
         </nav>
       </header>
 
       {/* Main Content Area - Conditional Rendering based on currentPage */}
-      <main className="flex-grow">
+      <main className="flex-grow relative z-10">
         {currentPage === 'home' && (
           <Home
             onSelectMovie={handleSelectMovie}
@@ -129,9 +171,11 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-gray-400 text-center py-4 mt-8 shadow-inner">
-        <p>&copy; {new Date().getFullYear()} MovieDiscovery App. All rights reserved.</p>
-        <p className="text-sm mt-1">Data provided by The Movie Database (TMDb).</p>
+      <footer className="glass-dark text-gray-400 text-center py-6 mt-12 shadow-inner border-t border-white/10 animate-fade-in">
+        <div className="animate-slide-in-up">
+          <p className="text-lg font-medium">&copy; {new Date().getFullYear()} MovieDiscovery App. All rights reserved.</p>
+          <p className="text-sm mt-2 opacity-75">Data provided by The Movie Database (TMDb).</p>
+        </div>
       </footer>
     </div>
   );
