@@ -1,5 +1,5 @@
 // src/components/MovieCard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 
 /**
  * MovieCard Component
