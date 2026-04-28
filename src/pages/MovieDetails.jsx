@@ -1,7 +1,7 @@
 // src/pages/MovieDetails.jsx
 import React, { useState, useEffect } from 'react';
 
-const TMDB_API_KEY = process.env.REACT_APP_TMDB_API_KEY;
+const TMDB_API_KEY = process.env.REACT_APP_TMDB_API_KEY || 'b537a2a6458becf6aed33e3fc3dee208';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 // CORS proxy to bypass network restrictions blocking TMDB

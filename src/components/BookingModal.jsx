@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
-const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID;
+const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_SirTYs4BKTkbwg';
 
 const POPULAR_CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune'];
 
