@@ -1,139 +1,331 @@
-// src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthModal from './components/AuthModal';
+import BookingModal from './components/BookingModal';
 import Home from './pages/Home';
-import MovieDetail from './pages/MovieDetails'; // Corrected import: MovieDetails.jsx
-import Favorites from './pages/Favourites'; // Corrected import: Favourites.jsx
+import MovieDetails from './pages/MovieDetails';
+import Favourites from './pages/Favourites';
+import MyBookings from './pages/MyBookings';
+import './index.css';
 
-function App() {
-  // State to manage the current page being displayed
-  // 'home', 'detail', 'favorites'
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
+function AppContent() {
   const [currentPage, setCurrentPage] = useState('home');
-  // State to store the ID of the movie currently being viewed in detail
   const [selectedMovieId, setSelectedMovieId] = useState(null);
-  // State to store the list of favorite movies.
-  // Initialize from localStorage for persistence across sessions.
-  const [favorites, setFavorites] = useState(() => {
-    try {
-      const storedFavorites = localStorage.getItem('movieFavorites');
-      return storedFavorites ? JSON.parse(storedFavorites) : [];
-    } catch (error) {
-      console.error("Failed to parse favorites from localStorage:", error);
-      return []; // Return empty array on error
-    }
-  });
+  const [favorites, setFavorites] = useState([]);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingMovie, setBookingMovie] = useState(null);
+  const [navScrolled, setNavScrolled] = useState(false);
+  const { user, token, isAuthenticated, logout, loading: authLoading } = useAuth();
 
-  // Effect to save favorites to localStorage whenever the favorites state changes
+  // Navbar scroll effect
   useEffect(() => {
-    try {
-      localStorage.setItem('movieFavorites', JSON.stringify(favorites));
-    } catch (error) {
-      console.error("Failed to save favorites to localStorage:", error);
+    const handleScroll = () => {
+      setNavScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Fetch favorites from backend when authenticated
+  const fetchFavorites = useCallback(async () => {
+    if (!token) {
+      setFavorites([]);
+      return;
     }
-  }, [favorites]); // Dependency array: runs when 'favorites' state changes
 
-  // Function to navigate to the MovieDetail page
-  const handleSelectMovie = (id) => {
-    setSelectedMovieId(id);
-    setCurrentPage('detail');
-  };
+    try {
+      const res = await fetch(`${API_BASE}/api/favorites`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-  // Function to navigate back to the Home page
-  const handleBackToHome = () => {
-    setSelectedMovieId(null); // Clear selected movie ID
-    setCurrentPage('home');
-  };
-
-  // Function to navigate to the Favorites page
-  const handleGoToFavorites = () => {
-    setCurrentPage('favorites');
-  };
-
-  // Function to toggle a movie's favorite status
-  const handleToggleFavorite = (movieToToggle) => {
-    setFavorites((prevFavorites) => {
-      // Check if the movie is already in favorites
-      const isAlreadyFavorite = prevFavorites.some((fav) => fav.id === movieToToggle.id);
-
-      if (isAlreadyFavorite) {
-        // If it's a favorite, remove it
-        return prevFavorites.filter((fav) => fav.id !== movieToToggle.id);
-      } else {
-        // If not a favorite, add it
-        return [...prevFavorites, movieToToggle];
+      if (res.ok) {
+        const data = await res.json();
+        setFavorites(data.favorites || []);
       }
-    });
+    } catch (err) {
+      console.error('Failed to fetch favorites:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchFavorites();
+    } else {
+      setFavorites([]);
+    }
+  }, [isAuthenticated, fetchFavorites]);
+
+  const navigateToHome = () => {
+    setCurrentPage('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const navigateToMovieDetails = (movieId) => {
+    setSelectedMovieId(movieId);
+    setCurrentPage('movieDetails');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToFavourites = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    setCurrentPage('favourites');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToBookings = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    setCurrentPage('bookings');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBookTickets = (movie) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    setBookingMovie(movie);
+    setShowBookingModal(true);
+  };
+
+  const toggleFavorite = async (movie) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const isAlreadyFavorite = favorites.some(fav => fav.id === movie.id);
+
+    try {
+      if (isAlreadyFavorite) {
+        const res = await fetch(`${API_BASE}/api/favorites/${movie.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          setFavorites(prev => prev.filter(fav => fav.id !== movie.id));
+        }
+      } else {
+        const res = await fetch(`${API_BASE}/api/favorites`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            movie_id: movie.id,
+            title: movie.title,
+            poster_path: movie.poster_path,
+            release_date: movie.release_date,
+            vote_average: movie.vote_average,
+            overview: movie.overview
+          })
+        });
+
+        if (res.ok) {
+          setFavorites(prev => [...prev, movie]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    }
+  };
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'home':
+        return (
+          <Home
+            onSelectMovie={navigateToMovieDetails}
+            onFavouritesClick={navigateToFavourites}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        );
+      case 'movieDetails':
+        return (
+          <MovieDetails
+            movieId={selectedMovieId}
+            onBackClick={navigateToHome}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            onBookTickets={handleBookTickets}
+          />
+        );
+      case 'favourites':
+        return (
+          <Favourites
+            favorites={favorites}
+            onBackClick={navigateToHome}
+            onMovieClick={navigateToMovieDetails}
+            onToggleFavorite={toggleFavorite}
+          />
+        );
+      case 'bookings':
+        return (
+          <MyBookings
+            onBackClick={navigateToHome}
+            onMovieClick={navigateToMovieDetails}
+          />
+        );
+      default:
+        return (
+          <Home
+            onSelectMovie={navigateToMovieDetails}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        );
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: '100vh', background: 'var(--netflix-dark)' }}>
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-      {/* Navigation Bar */}
-      <header className="bg-gray-800 shadow-lg py-4 px-4 md:px-8 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-10">
-        <h1
-          className="text-3xl font-bold text-blue-400 mb-4 sm:mb-0 cursor-pointer hover:text-blue-300 transition-colors duration-200"
-          onClick={handleBackToHome} // Click title to go home
-        >
-          MovieDiscovery
-        </h1>
-        <nav>
-          <ul className="flex space-x-4">
-            <li>
-              <button
-                onClick={handleBackToHome}
-                className={`
-                  px-4 py-2 rounded-lg font-medium transition-colors duration-200
-                  ${currentPage === 'home' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                `}
-              >
-                Home
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={handleGoToFavorites}
-                className={`
-                  px-4 py-2 rounded-lg font-medium transition-colors duration-200
-                  ${currentPage === 'favorites' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                `}
-              >
-                Favorites ({favorites.length})
-              </button>
-            </li>
-          </ul>
-        </nav>
-      </header>
+    <div className="App">
+      {/* ===== NETFLIX-STYLE NAV ===== */}
+      <nav className={`netflix-nav ${navScrolled ? 'scrolled' : ''}`}>
+        {/* Left: Logo + Nav Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          <button onClick={navigateToHome} className="nav-logo" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            MOVIEVERSE
+          </button>
+          <div style={{ display: 'flex', gap: '20px' }} className="hidden sm:flex">
+            <button
+              onClick={navigateToHome}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: currentPage === 'home' ? 'white' : 'var(--netflix-text-muted)',
+                fontWeight: currentPage === 'home' ? '600' : '400',
+                fontSize: '0.9rem', transition: 'color 0.3s',
+                fontFamily: 'inherit'
+              }}
+            >
+              Home
+            </button>
+            <button
+              onClick={navigateToFavourites}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: currentPage === 'favourites' ? 'white' : 'var(--netflix-text-muted)',
+                fontWeight: currentPage === 'favourites' ? '600' : '400',
+                fontSize: '0.9rem', transition: 'color 0.3s',
+                fontFamily: 'inherit'
+              }}
+            >
+              My List
+            </button>
+            <button
+              onClick={navigateToBookings}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: currentPage === 'bookings' ? 'white' : 'var(--netflix-text-muted)',
+                fontWeight: currentPage === 'bookings' ? '600' : '400',
+                fontSize: '0.9rem', transition: 'color 0.3s',
+                fontFamily: 'inherit'
+              }}
+            >
+              My Bookings
+            </button>
+          </div>
+        </div>
 
-      {/* Main Content Area - Conditional Rendering based on currentPage */}
-      <main className="flex-grow">
-        {currentPage === 'home' && (
-          <Home
-            onSelectMovie={handleSelectMovie}
-            favorites={favorites}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        )}
-        {currentPage === 'detail' && selectedMovieId && (
-          <MovieDetail
-            movieId={selectedMovieId}
-            onBack={handleBackToHome}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={favorites.some((fav) => fav.id === selectedMovieId)}
-          />
-        )}
-        {currentPage === 'favorites' && (
-          <Favorites
-            favorites={favorites}
-            onSelectMovie={handleSelectMovie}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        )}
-      </main>
+        {/* Right: User Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Mobile Favorites */}
+          <button
+            onClick={navigateToFavourites}
+            className="sm:hidden"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: 'white',
+              position: 'relative', padding: '4px'
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill={favorites.length > 0 ? 'var(--netflix-red)' : 'none'} stroke="currentColor" strokeWidth="2">
+              <path d="M12 4.5C7 -0.5 2 3.5 2 9C2 14 12 20.5 12 20.5C12 20.5 22 14 22 9C22 3.5 17 -0.5 12 4.5Z" />
+            </svg>
+            {favorites.length > 0 && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-6px',
+                background: 'var(--netflix-red)', color: 'white',
+                fontSize: '0.65rem', fontWeight: '700',
+                width: '18px', height: '18px', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {favorites.length}
+              </span>
+            )}
+          </button>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-gray-400 text-center py-4 mt-8 shadow-inner">
-        <p>&copy; {new Date().getFullYear()} MovieDiscovery App. All rights reserved.</p>
-        <p className="text-sm mt-1">Data provided by The Movie Database (TMDb).</p>
-      </footer>
+          {/* Auth */}
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '4px',
+                background: 'linear-gradient(135deg, var(--netflix-red), #b20710)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontSize: '0.85rem', fontWeight: '700',
+                cursor: 'pointer'
+              }}>
+                {user?.username?.charAt(0).toUpperCase()}
+              </div>
+              <button
+                onClick={logout}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--netflix-text-muted)', fontSize: '0.85rem',
+                  fontFamily: 'inherit', transition: 'color 0.3s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = 'white'}
+                onMouseLeave={(e) => e.target.style.color = 'var(--netflix-text-muted)'}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button className="btn-netflix" onClick={() => setShowAuthModal(true)}>
+              Sign In
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Page Content */}
+      {renderCurrentPage()}
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={showBookingModal}
+        onClose={() => { setShowBookingModal(false); setBookingMovie(null); }}
+        movie={bookingMovie}
+      />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
