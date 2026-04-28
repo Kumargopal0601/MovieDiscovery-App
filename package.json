@@ -3,19 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.4.4"
   },
   "scripts": {
     "start": "cd server && node index.js",
-    "build": "react-scripts build && cd server && npm install",
-    "build:client": "react-scripts build",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "server": "cd server && node index.js",
     "dev": "concurrently \"npm run server\" \"react-scripts start\"",
-    "install:all": "npm install && cd server && npm install",
-    "render-build": "npm install && cd server && npm install && cd .. && npm run build:client"
+    "render-build": "npm install && cd server && npm install && cd .. && npm run build"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -39,10 +41,6 @@
     ]
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.19",
-    "concurrently": "^9.2.1",
-    "postcss": "^8.4.38",
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.4.4"
+    "concurrently": "^9.2.1"
   }
 }
